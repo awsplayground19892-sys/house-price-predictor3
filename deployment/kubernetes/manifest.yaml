@@ -36,14 +36,11 @@ metadata:
   name: streamlit
 spec:
   ports:
-  - name: "8501"
-    nodePort: 30000
-    port: 8501
-    protocol: TCP
+  - port: 8501
     targetPort: 8501
   selector:
     app: streamlit
-  type: NodePort
+  type: ClusterIP
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -79,12 +76,29 @@ metadata:
   name: model
 spec:
   ports:
-  - name: "8000"
-    nodePort: 30100
-    port: 8000
-    protocol: TCP
+  - port: 8000
     targetPort: 8000
   selector:
     app: model
-  type: NodePort
-
+  type: ClusterIP
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: streamlit-ingress
+  annotations:
+    alb.ingress.kubernetes.io/scheme: internet-facing
+    alb.ingress.kubernetes.io/target-type: ip
+    alb.ingress.kubernetes.io/listen-ports: '[{"HTTP": 80}]'
+spec:
+  ingressClassName: alb
+  rules:
+    - http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: streamlit
+                port:
+                  number: 8501
