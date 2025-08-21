@@ -50,7 +50,7 @@ metadata:
     app: model
   name: model
 spec:
-  replicas: 2
+  replicas: 1
   selector:
     matchLabels:
       app: model
@@ -66,6 +66,12 @@ spec:
         name: house-price-model
         ports:
         - containerPort: 8000
+        requests:
+          cpu: "50m"
+          memory: "64Mi"
+        limits:
+          cpu: "100m"
+          memory: "128Mi"
 ---
 apiVersion: v1
 kind: Service
@@ -86,4 +92,48 @@ spec:
   selector:
     app: model
   type: NodePort
+---
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: house-price-api-monitor
+  labels:
+    release: prom  # Match the label of your Prometheus instance as per helm release
+spec:
+  selector:
+    matchLabels:
+      app: model
+  namespaceSelector:
+    matchNames:
+      - default  # or your namespace
+  endpoints:
+    - port: metrics
+      path: /
+      interval: 15s
+      scrapeTimeout: 10s
+---
+apiVersion: keda.sh/v1alpha1
+kind: ScaledObject
+metadata:
+  name: fastapi-latency-autoscaler
+  namespace: default
+spec:
+  scaleTargetRef:
+    name: model  # update to your actual deployment name
+  minReplicaCount: 1
+  maxReplicaCount: 5
+  pollingInterval: 30  # seconds
+  cooldownPeriod: 300  # seconds before scaling down
+  triggers:
+    - type: prometheus
+      metadata:
+        serverAddress: http://prom-kube-prometheus-stack-prometheus.monitoring.svc:9090
+        metricName: fastapi_latency_p95
+        query: |
+          histogram_quantile(0.95, sum(rate(http_request_duration_seconds_bucket[1m])) by (le))
+        threshold: "0.1"
+    - type: cpu
+      metricType: Utilization # Allowed types are 'Utilization' or 'AverageValue'
+      metadata:
+        value: "50"
 
