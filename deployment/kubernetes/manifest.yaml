@@ -66,12 +66,13 @@ spec:
         name: house-price-model
         ports:
         - containerPort: 8000
-        requests:
-          cpu: "50m"
-          memory: "64Mi"
-        limits:
-          cpu: "100m"
-          memory: "128Mi"
+        resources:
+          requests:
+            cpu: "50m"
+            memory: "64Mi"
+          limits:
+            cpu: "100m"
+            memory: "128Mi"
 ---
 apiVersion: v1
 kind: Service
@@ -86,6 +87,7 @@ spec:
     targetPort: 8000
     nodePort: 30100
     protocol: TCP
+    name: "8000"
   - name: metrics
     port: 9100
     targetPort: 9100
@@ -136,4 +138,3 @@ spec:
       metricType: Utilization # Allowed types are 'Utilization' or 'AverageValue'
       metadata:
         value: "50"
-
